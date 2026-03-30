@@ -169,10 +169,8 @@ tbody tr:last-child td {
 }
 
 .navbar{
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 12px;
   padding: 10px 20px;
   background: #fff;
   border-bottom: 2px solid #ede8f5;
@@ -182,15 +180,17 @@ tbody tr:last-child td {
   z-index: 100;
 }
 
-.nav-left  { justify-self: start; }
-.nav-right { justify-self: end; }
+.nav-left  { flex-shrink: 0; }
+.nav-right { flex-shrink: 0; margin-left: auto; }
 
 .nav-search {
-  justify-self: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   width: 100%;
-  max-width: 520px;
+  max-width: 480px;
   display: flex;
-  margin: 0 auto;
+  pointer-events: all;
 }
 
 .nav-search input {
@@ -392,18 +392,12 @@ input:focus {
   transform: none;
   box-shadow: none;
 }
-.pg-active {
-  background: var(--roxo);
-  color: #fff;
-  border-color: var(--roxo);
-}
-.pg-active:hover {
-  background: var(--roxo-hover) !important;
-}
-.pg-info {
-  margin-left: 8px;
-  font-size: 0.85em;
-  color: #888;
+.pg-label {
+  min-width: 60px;
+  text-align: center;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--roxo);
 }
 
 /* ── Window controls (frameless) ── */

@@ -43,8 +43,16 @@
     "asarUnpack": [
       "node_modules/better-sqlite3/**"
     ],
+    "icon": "src/renderer/src/assets/logo-cereb.ico",
+    "extraResources": [
+      {
+        "from": "src/renderer/src/assets/logo-cereb.ico",
+        "to": "icon.ico"
+      }
+    ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "src/renderer/src/assets/logo-cereb.ico"
     }
   }
 }

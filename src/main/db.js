@@ -161,9 +161,10 @@ function deletePaciente(id) {
   const row = db.prepare('SELECT * FROM tb_paciente WHERE id = ?').get(Number(id))
   if (!row) throw new Error('Paciente não encontrado')
 
-  if (row.supabase_id) {
-    db.prepare('INSERT OR IGNORE INTO deletados (supabase_id) VALUES (?)').run(row.supabase_id)
-  }
+  // Registra deleção para o sync — usa supabase_id se existir, senão usa o id local
+  // (registros puxados do Supabase chegam com supabase_id = null, mas seu local_id no Supabase = id local)
+  const supabaseRef = row.supabase_id ?? String(row.id)
+  db.prepare('INSERT OR IGNORE INTO deletados (supabase_id) VALUES (?)').run(supabaseRef)
 
   db.prepare('DELETE FROM tb_paciente WHERE id = ?').run(Number(id))
   syncToSupabase().catch(() => {})
@@ -242,7 +243,7 @@ async function syncToSupabase() {
   if (!supabase) return
 
   try {
-    // Envia registros não sincronizados (insert ou update)
+    // ── 1. Push: envia registros locais não sincronizados ──────────────────
     const pending = db.prepare('SELECT * FROM tb_paciente WHERE sincronizado = 0').all()
     for (const row of pending) {
       const { error } = await supabase.from('pacientes').upsert(
@@ -267,13 +268,53 @@ async function syncToSupabase() {
       }
     }
 
-    // Envia deleções
+    // ── 2. Push: envia deleções ────────────────────────────────────────────
     const deletados = db.prepare('SELECT * FROM deletados').all()
     for (const d of deletados) {
       const { error } = await supabase.from('pacientes').delete().eq('local_id', d.supabase_id)
       if (!error) {
         db.prepare('DELETE FROM deletados WHERE supabase_id = ?').run(d.supabase_id)
       }
+    }
+
+    // ── 3. Pull: traz do Supabase registros que não existem localmente ─────
+    const { data: remoteRows, error: fetchError } = await supabase.from('pacientes').select('*')
+    if (fetchError) throw fetchError
+
+    const localIds    = new Set(db.prepare('SELECT id FROM tb_paciente').all().map(r => r.id))
+    const deletadoIds = new Set(db.prepare('SELECT supabase_id FROM deletados').all().map(r => String(r.supabase_id)))
+
+    const insertRemote = db.prepare(`
+      INSERT OR IGNORE INTO tb_paciente
+        (id, nr_responsavel, nm_responsavel, nm_paciente,
+         preco_fono, horas_fono, reembolso_fono,
+         preco_to, horas_to, reembolso_to,
+         preco_aba, reembolso_aba, sincronizado)
+      VALUES
+        (@id, @nr_responsavel, @nm_responsavel, @nm_paciente,
+         @preco_fono, @horas_fono, @reembolso_fono,
+         @preco_to, @horas_to, @reembolso_to,
+         @preco_aba, @reembolso_aba, 1)
+    `)
+
+    for (const remote of remoteRows) {
+      if (localIds.has(remote.local_id)) continue           // já existe localmente
+      if (deletadoIds.has(String(remote.local_id))) continue // foi deletado localmente
+
+      insertRemote.run({
+        id:             remote.local_id,
+        nr_responsavel: remote.nr_responsavel ?? '',
+        nm_responsavel: remote.nm_responsavel ?? '',
+        nm_paciente:    remote.nm_paciente    ?? '',
+        preco_fono:     remote.preco_fono     ?? 0,
+        horas_fono:     remote.horas_fono     ?? 0,
+        reembolso_fono: remote.reembolso_fono ?? 0,
+        preco_to:       remote.preco_to       ?? 0,
+        horas_to:       remote.horas_to       ?? 0,
+        reembolso_to:   remote.reembolso_to   ?? 0,
+        preco_aba:      remote.preco_aba      ?? 0,
+        reembolso_aba:  remote.reembolso_aba  ?? 0,
+      })
     }
   } catch (err) {
     console.error('[Supabase sync error]', err)

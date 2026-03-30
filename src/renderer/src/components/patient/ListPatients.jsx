@@ -10,7 +10,7 @@ import Spinner from '../common/Spinner';
 
 import logoEspaco from '../../assets/logo.png';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 export default function ListPatients() {
   const [pacientes, setPacientes] = useState([]);
@@ -95,7 +95,7 @@ export default function ListPatients() {
         />
       )}
 
-      <h2>Pacientes</h2>
+      <h2>Gestão de Pacientes</h2>
 
       <div className='cadastro'>
         <button className='exportar' onClick={exportar}>
@@ -183,15 +183,7 @@ export default function ListPatients() {
             <FontAwesomeIcon icon="fa-solid fa-chevron-left" />
           </button>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-            <button
-              key={n}
-              className={`pg-btn${n === page ? ' pg-active' : ''}`}
-              onClick={() => setPage(n)}
-            >
-              {n}
-            </button>
-          ))}
+          <span className="pg-label">{page} / {totalPages}</span>
 
           <button
             className="pg-btn"
@@ -200,10 +192,6 @@ export default function ListPatients() {
           >
             <FontAwesomeIcon icon="fa-solid fa-chevron-right" />
           </button>
-
-          <span className="pg-info">
-            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, pacientes.length)} de {pacientes.length}
-          </span>
         </div>
       )}
 

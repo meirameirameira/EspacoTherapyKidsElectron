@@ -10,6 +10,10 @@ import {
   faEye,
   faDownload,
   faRightFromBracket,
+  faChevronLeft,
+  faChevronRight,
+  faXmark,
+  faFilter,
 } from '@fortawesome/free-solid-svg-icons';
 
 library.add(
@@ -23,4 +27,8 @@ library.add(
   faEye,
   faDownload,
   faRightFromBracket,
+  faChevronLeft,
+  faChevronRight,
+  faXmark,
+  faFilter,
 );

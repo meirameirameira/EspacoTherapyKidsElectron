@@ -53,7 +53,7 @@ function TherapyCard({ label, color, dados, usaHoras }) {
           {usaHoras && <Row label="Horas de sessão" value={fmtInt(dados.horas)} accent={color} />}
           {usaHoras && <Row label="Total" value={fmtMoney(dados.total)} accent={color} bold />}
           <Row label="Reembolso NF" value={fmtMoney(dados.reembolso)} accent={color} />
-          <Row label="Notas Fiscais" value={fmtInt(dados.nf)} accent={color} bold />
+          <Row label="Horas para NF" value={fmtInt(dados.nf)} accent={color} bold />
         </div>
       ) : (
         <p style={{ margin: 0, color: '#bbb', fontSize: '0.9em' }}>Terapia não cadastrada.</p>

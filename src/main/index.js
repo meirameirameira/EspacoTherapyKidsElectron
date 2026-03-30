@@ -2,11 +2,16 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import db from './db'
 
+const iconPath = app.isPackaged
+  ? join(process.resourcesPath, 'icon.ico')
+  : join(__dirname, '../../src/renderer/src/assets/logo-cereb.ico')
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     frame: false,
+    icon: iconPath,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
