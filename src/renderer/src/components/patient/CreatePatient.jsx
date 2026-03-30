@@ -1,9 +1,12 @@
-import React from 'react';
 import { Formik, Field } from 'formik';
 import * as Yup from 'yup';
+import { useNavigate } from 'react-router-dom';
 import InputField from '../common/InputField';
 import Button from '../common/Button';
 import { createPaciente } from '../../api';
+import { useToast } from '../common/Toast';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/global.css';
 
 import {
@@ -49,9 +52,22 @@ const schema = Yup.object({
 });
 
 export default function CreatePatient() {
+  const toast = useToast();
+  const navigate = useNavigate();
+
   return (
     <Page>
-      <h2 style={{ textAlign: 'center' }}>Cadastrar Paciente</h2>
+      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+        <button
+          onClick={() => navigate('/listar')}
+          style={{ background: 'none', color: 'var(--roxo)', boxShadow: 'none', fontWeight: 600, fontSize: '0.9em', padding: '6px 10px' }}
+        >
+          <FontAwesomeIcon icon={faArrowLeft} style={{ marginRight: 6 }} />
+          Voltar
+        </button>
+        <h2 style={{ flex: 1, textAlign: 'center', margin: 0 }}>Cadastrar Paciente</h2>
+        <div style={{ width: 80 }} />
+      </div>
 
       <Formik
         initialValues={{
@@ -80,135 +96,81 @@ export default function CreatePatient() {
             nmResponsavel: vals.nmResponsavel?.trim(),
             nrResponsavel: Number(vals.nrResponsavel),
             fono: vals.fonoEnabled
-              ? {
-                  preco: toNum(vals.fonoPreco),
-                  horas: Math.max(1, Number(vals.fonoHoras)),
-                  reembolsoInformado: toNum(vals.fonoReembolso),
-                }
+              ? { preco: toNum(vals.fonoPreco), horas: Math.max(1, Number(vals.fonoHoras)), reembolsoInformado: toNum(vals.fonoReembolso) }
               : { preco: 0, horas: 0, reembolsoInformado: 1 },
             terapiaOcupacional: vals.toEnabled
-              ? {
-                  preco: toNum(vals.toPreco),
-                  horas: Math.max(1, Number(vals.toHoras)),
-                  reembolsoInformado: toNum(vals.toReembolso),
-                }
+              ? { preco: toNum(vals.toPreco), horas: Math.max(1, Number(vals.toHoras)), reembolsoInformado: toNum(vals.toReembolso) }
               : { preco: 0, horas: 0, reembolsoInformado: 1 },
             aba: vals.abaEnabled
-              ? {
-                  preco: toNum(vals.abaPreco),
-                  horas: 1,
-                  reembolsoInformado: toNum(vals.abaReembolso),
-                }
+              ? { preco: toNum(vals.abaPreco), horas: 1, reembolsoInformado: toNum(vals.abaReembolso) }
               : { preco: 0, horas: 1, reembolsoInformado: 1 },
           };
 
           try {
             await createPaciente(paciente);
-            alert('Paciente cadastrado com sucesso!');
+            toast('Paciente cadastrado com sucesso!', 'success');
             resetForm();
           } catch (error) {
             console.error('Erro ao criar paciente', error);
-            alert('Falha ao cadastrar paciente: ' + error.message);
+            toast('Falha ao cadastrar: ' + error.message, 'error');
           }
         }}
       >
         {({ values, handleSubmit, isSubmitting, setFieldValue }) => (
           <LargeForm onSubmit={handleSubmit}>
             <FormInner>
-              <InputField name="nome" label="Nome" />
-              <InputField name="nrResponsavel" label="Número do Responsável" type="text" />
+              <InputField name="nome" label="Nome do Paciente" />
+              <InputField name="nrResponsavel" label="Contato do Responsável" type="text" />
               <InputField name="nmResponsavel" label="Nome do Responsável" />
 
               <Specializations>
-                <SpecSection>
+                <SpecSection active={values.fonoEnabled} color="#67c2c7">
                   <label>
                     <Field
                       type="checkbox"
                       name="fonoEnabled"
                       checked={values.fonoEnabled}
-                      onChange={() =>
-                        setFieldValue('fonoEnabled', !values.fonoEnabled)
-                      }
-                    />{' '}
+                      onChange={() => setFieldValue('fonoEnabled', !values.fonoEnabled)}
+                    />
                     Fonoaudiologia
                   </label>
-                  <InputField
-                    name="fonoPreco"
-                    label="Valor sessão (R$)"
-                    type="number"
-                    disabled={!values.fonoEnabled}
-                  />
-                  <InputField
-                    name="fonoHoras"
-                    label="Horas de sessão"
-                    type="number"
-                    disabled={!values.fonoEnabled}
-                  />
-                  <InputField
-                    name="fonoReembolso"
-                    label="Reembolso informado"
-                    type="number"
-                    disabled={!values.fonoEnabled}
-                  />
+                  <InputField name="fonoPreco"     label="Valor sessão (R$)"  type="number" disabled={!values.fonoEnabled} />
+                  <InputField name="fonoHoras"     label="Horas de sessão"    type="number" disabled={!values.fonoEnabled} />
+                  <InputField name="fonoReembolso" label="Reembolso informado" type="number" disabled={!values.fonoEnabled} />
                 </SpecSection>
 
-                <SpecSection>
+                <SpecSection active={values.toEnabled} color="#88bd31">
                   <label>
                     <Field
                       type="checkbox"
                       name="toEnabled"
                       checked={values.toEnabled}
                       onChange={() => setFieldValue('toEnabled', !values.toEnabled)}
-                    />{' '}
+                    />
                     Terapia Ocupacional
                   </label>
-                  <InputField
-                    name="toPreco"
-                    label="Valor sessão (R$)"
-                    type="number"
-                    disabled={!values.toEnabled}
-                  />
-                  <InputField
-                    name="toHoras"
-                    label="Horas de sessão"
-                    type="number"
-                    disabled={!values.toEnabled}
-                  />
-                  <InputField
-                    name="toReembolso"
-                    label="Reembolso informado"
-                    type="number"
-                    disabled={!values.toEnabled}
-                  />
+                  <InputField name="toPreco"     label="Valor sessão (R$)"  type="number" disabled={!values.toEnabled} />
+                  <InputField name="toHoras"     label="Horas de sessão"    type="number" disabled={!values.toEnabled} />
+                  <InputField name="toReembolso" label="Reembolso informado" type="number" disabled={!values.toEnabled} />
                 </SpecSection>
 
-                <SpecSection>
+                <SpecSection active={values.abaEnabled} color="#80529b">
                   <label>
                     <Field
                       type="checkbox"
                       name="abaEnabled"
                       checked={values.abaEnabled}
                       onChange={() => setFieldValue('abaEnabled', !values.abaEnabled)}
-                    />{' '}
+                    />
                     Terapia ABA
                   </label>
-                  <InputField
-                    name="abaPreco"
-                    label="Valor do pacote (R$)"
-                    type="number"
-                    disabled={!values.abaEnabled}
-                  />
-                  <InputField
-                    name="abaReembolso"
-                    label="Reembolso informado"
-                    type="number"
-                    disabled={!values.abaEnabled}
-                  />
+                  <InputField name="abaPreco"     label="Valor do pacote (R$)" type="number" disabled={!values.abaEnabled} />
+                  <InputField name="abaReembolso" label="Reembolso informado"  type="number" disabled={!values.abaEnabled} />
                 </SpecSection>
               </Specializations>
 
               <FullWidthActions>
-                <Button style={{width: '200px'}} type="submit" disabled={isSubmitting}>
+                <Button style={{ width: 200 }} type="submit" disabled={isSubmitting}>
                   {isSubmitting ? 'Enviando...' : 'Cadastrar'}
                 </Button>
               </FullWidthActions>

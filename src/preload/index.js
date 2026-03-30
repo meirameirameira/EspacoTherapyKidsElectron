@@ -8,4 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   updatePaciente:     (id, data)   => ipcRenderer.invoke('pacientes:update', id, data),
   deletePaciente:     (id)         => ipcRenderer.invoke('pacientes:delete', id),
   exportPacientesXlsx: ()          => ipcRenderer.invoke('pacientes:export'),
+  windowMinimize:  () => ipcRenderer.invoke('window:minimize'),
+  windowMaximize:  () => ipcRenderer.invoke('window:maximize'),
+  windowClose:     () => ipcRenderer.invoke('window:close'),
 })

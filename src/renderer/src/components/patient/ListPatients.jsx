@@ -1,35 +1,45 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchPacientes, deletePaciente, fetchPacienteById, exportPacientesXlsx } from '../../api';
 import '../../styles/global.css';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useToast } from '../common/Toast';
+import ConfirmModal from '../common/ConfirmModal';
+import Spinner from '../common/Spinner';
 
 import logoEspaco from '../../assets/logo.png';
 
+const PAGE_SIZE = 20;
+
 export default function ListPatients() {
   const [pacientes, setPacientes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirmId, setConfirmId] = useState(null);
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const toast = useToast();
 
   const q  = searchParams.get('q')  ?? '';
   const by = searchParams.get('by') ?? '';
 
   const load = useCallback(async () => {
     try {
+      setLoading(true);
       setError('');
+      setPage(1);
 
       if (by === 'id' && /^\d+$/.test(q)) {
         try {
           const p = await fetchPacienteById(q);
           setPacientes(p ? [p] : []);
-          return;
         } catch (e) {
           setPacientes([]);
           setError(e?.message || 'Paciente não encontrado');
-          return;
         }
+        return;
       }
 
       const res = await fetchPacientes({ nome: q || undefined });
@@ -38,96 +48,168 @@ export default function ListPatients() {
     } catch (err) {
       setError(err?.message || 'Falha ao carregar');
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   }, [q, by]);
 
   useEffect(() => { load(); }, [load]);
 
-  const remover = async (id) => {
-    if (!window.confirm('Confirmar remoção?')) return;
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(pacientes.length / PAGE_SIZE)), [pacientes]);
+  const paginated  = useMemo(() => pacientes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [pacientes, page]);
+
+  const confirmarRemocao = (id) => setConfirmId(id);
+
+  const remover = async () => {
     try {
-      await deletePaciente(id);
+      await deletePaciente(confirmId);
+      setConfirmId(null);
+      toast('Paciente removido com sucesso.', 'success');
       await load();
     } catch (err) {
-      alert(err?.message || 'Falha ao remover');
+      setConfirmId(null);
+      toast(err?.message || 'Falha ao remover paciente.', 'error');
     }
-  };
-
-  const editar = (paciente) => {
-    navigate(`/atualizar/${paciente.codigo}`, { state: { paciente } });
-  };
-  const ver = (paciente) => {
-    navigate(`/visualizar/${paciente.codigo}`, { state: { paciente } });
   };
 
   const exportar = async () => {
     try {
       await exportPacientesXlsx();
+      toast('Exportação concluída!', 'success');
     } catch (err) {
-      alert(err?.message || 'Falha ao exportar');
+      toast(err?.message || 'Falha ao exportar.', 'error');
     }
   };
 
+  const editar = (paciente) => navigate(`/atualizar/${paciente.codigo}`, { state: { paciente } });
+  const ver    = (paciente) => navigate(`/visualizar/${paciente.codigo}`, { state: { paciente } });
+
   return (
     <>
+      {confirmId && (
+        <ConfirmModal
+          message="Deseja remover este paciente? Esta ação não pode ser desfeita."
+          confirmLabel="Remover"
+          onConfirm={remover}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
+
       <h2>Pacientes</h2>
 
       <div className='cadastro'>
-        <button className='exportar' onClick={exportar}>Exportar <FontAwesomeIcon icon="fa-solid fa-download" /> </button>
-        <button className='recarregar' onClick={() => navigate('/cadastrar')}> <FontAwesomeIcon icon="fa-solid fa-plus" /> Adicionar Paciente </button>
-        <button className='buscar' onClick={load}>Recarregar <FontAwesomeIcon icon="fa-solid fa-rotate" /></button>
-        {(q || by) && (
-          <button onClick={() => navigate('/listar')} style={{ marginLeft: 8 }}>
-            Limpar busca
-          </button>
-        )}
+        <button className='exportar' onClick={exportar}>
+          Exportar <FontAwesomeIcon icon="fa-solid fa-download" />
+        </button>
+        <button className='recarregar' onClick={() => navigate('/cadastrar')}>
+          <FontAwesomeIcon icon="fa-solid fa-plus" /> Adicionar
+        </button>
+        <button className='buscar' onClick={load}>
+          Recarregar <FontAwesomeIcon icon="fa-solid fa-rotate" />
+        </button>
       </div>
 
       {(q || by) && (
-        <p style={{ marginLeft: '20px'}}>
-          Filtro ativo: <strong>{by || 'nome'}</strong> = "<em>{q}</em>"
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <span className="filtro-ativo">
+            <FontAwesomeIcon icon="fa-solid fa-filter" />
+            {by === 'id' ? 'Código' : 'Nome'}: &ldquo;<em>{q}</em>&rdquo;
+            <button onClick={() => navigate('/listar')} title="Limpar filtro">
+              <FontAwesomeIcon icon="fa-solid fa-xmark" />
+            </button>
+          </span>
+        </div>
+      )}
+
+      {error && (
+        <p style={{ color: 'var(--deletar)', textAlign: 'center', marginTop: 12 }}>{error}</p>
       )}
 
       <div className='tabela-lista'>
-        <table className='lista'>
-          <thead>
-            <tr>
-              <th className="table-centro">Código</th>
-              <th>Nome Paciente</th>
-              <th>Nome Responsável</th>
-              <th>Contato Responsável</th>
-              <th className="table-centro">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pacientes.map((p) => (
-              <tr key={p.codigo}>
-                <td className="table-centro">{p.codigo}</td>
-                <td>{p.nome}</td>
-                <td>{p.nmResponsavel}</td>
-                <td>{p.nrResponsavel}</td>
-                <td className="table-centro">
-                  <button className='ver' onClick={() => ver(p)}> Ver <FontAwesomeIcon icon="fa-solid fa-eye"/></button>
-                  <button onClick={() => editar(p)}> Editar <FontAwesomeIcon icon="fa-solid fa-pen-to-square" /></button>
-                  <button className='deletar' onClick={() => remover(p.codigo)}> Remover <FontAwesomeIcon icon="fa-solid fa-trash" /></button>
-                </td>
-              </tr>
-            ))}
-            {pacientes.length === 0 && (
+        {loading ? (
+          <Spinner />
+        ) : (
+          <table className='lista'>
+            <thead>
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: 12 }}>
-                  Nenhum paciente encontrado.
-                </td>
+                <th className="table-centro" style={{ width: 80 }}>Código</th>
+                <th>Nome Paciente</th>
+                <th>Responsável</th>
+                <th>Contato</th>
+                <th className="table-centro" style={{ width: 220 }}>Ações</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginated.map((p) => (
+                <tr key={p.codigo}>
+                  <td className="table-centro" style={{ fontWeight: 600, color: 'var(--roxo)' }}>
+                    #{p.codigo}
+                  </td>
+                  <td style={{ fontWeight: 500 }}>{p.nome}</td>
+                  <td>{p.nmResponsavel}</td>
+                  <td>{p.nrResponsavel}</td>
+                  <td className="table-centro">
+                    <button className='ver' onClick={() => ver(p)} title="Ver detalhes">
+                      <FontAwesomeIcon icon="fa-solid fa-eye" />
+                    </button>
+                    <button onClick={() => editar(p)} title="Editar paciente">
+                      <FontAwesomeIcon icon="fa-solid fa-pen-to-square" />
+                    </button>
+                    <button className='deletar' onClick={() => confirmarRemocao(p.codigo)} title="Remover paciente">
+                      <FontAwesomeIcon icon="fa-solid fa-trash" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {pacientes.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#888' }}>
+                    Nenhum paciente encontrado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {error && <p style={{ color: 'red', marginTop: 8 }}>{error}</p>}
+      {!loading && totalPages > 1 && (
+        <div className="pagination">
+          <button
+            className="pg-btn"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            <FontAwesomeIcon icon="fa-solid fa-chevron-left" />
+          </button>
 
-      <h2><img src={logoEspaco} alt="" /></h2>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+            <button
+              key={n}
+              className={`pg-btn${n === page ? ' pg-active' : ''}`}
+              onClick={() => setPage(n)}
+            >
+              {n}
+            </button>
+          ))}
+
+          <button
+            className="pg-btn"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            <FontAwesomeIcon icon="fa-solid fa-chevron-right" />
+          </button>
+
+          <span className="pg-info">
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, pacientes.length)} de {pacientes.length}
+          </span>
+        </div>
+      )}
+
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <img src={logoEspaco} alt="" style={{ maxWidth: 120, opacity: 0.6 }} />
+      </div>
     </>
   );
 }

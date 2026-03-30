@@ -7,11 +7,12 @@ import SearchPatient from './components/patient/SearchPatient'
 import UpdatePatient from './components/patient/UpdatePatient'
 import DeletePatient from './components/patient/DeletePatient'
 import PatientView from './components/patient/PatientView'
+import { ToastProvider } from './components/common/Toast'
 import './styles/global.css'
 
 export default function App() {
   return (
-    <>
+    <ToastProvider>
       <Navbar />
       <Routes>
         <Route path="/" element={<Navigate to="/listar" replace />} />
@@ -23,6 +24,6 @@ export default function App() {
         <Route path="/visualizar/:id" element={<PatientView />} />
         <Route path="*" element={<Navigate to="/listar" replace />} />
       </Routes>
-    </>
+    </ToastProvider>
   )
 }

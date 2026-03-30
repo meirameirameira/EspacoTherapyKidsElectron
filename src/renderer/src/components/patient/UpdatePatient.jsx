@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Formik, Field } from 'formik';
 import * as Yup from 'yup';
@@ -6,6 +6,8 @@ import * as Yup from 'yup';
 import InputField from '../common/InputField';
 import Button from '../common/Button';
 import { fetchPacienteById, updatePaciente } from '../../api';
+import { useToast } from '../common/Toast';
+import Spinner from '../common/Spinner';
 import '../../styles/global.css';
 
 import {
@@ -17,6 +19,9 @@ import {
   FullWidthActions,
 } from '../../styles/SectionsLayout';
 
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+
 const schema = Yup.object({
   nome: Yup.string().required('Obrigatório'),
   nrResponsavel: Yup.number().typeError('Número inválido').positive().required('Obrigatório'),
@@ -24,11 +29,12 @@ const schema = Yup.object({
 });
 
 export default function UpdatePatient() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { state } = useLocation();
+  const { id }      = useParams();
+  const navigate    = useNavigate();
+  const { state }   = useLocation();
+  const toast       = useToast();
   const [paciente, setPaciente] = useState(state?.paciente || null);
-  const [loading, setLoading] = useState(!state?.paciente);
+  const [loading, setLoading]   = useState(!state?.paciente);
 
   useEffect(() => {
     if (paciente) return;
@@ -39,6 +45,7 @@ export default function UpdatePatient() {
         setPaciente(data);
       } catch (e) {
         console.error(e);
+        toast('Falha ao carregar paciente.', 'error');
       } finally {
         setLoading(false);
       }
@@ -65,12 +72,22 @@ export default function UpdatePatient() {
     [paciente]
   );
 
-  if (loading) return <p>Carregando…</p>;
-  if (!paciente) return <p>Paciente não encontrado.</p>;
+  if (loading) return <Spinner />;
+  if (!paciente) return <p style={{ textAlign: 'center', padding: 24 }}>Paciente não encontrado.</p>;
 
   return (
     <Page>
-      <h2 style={{ textAlign: 'center' }}>Editar Paciente #{id}</h2>
+      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{ background: 'none', color: 'var(--roxo)', boxShadow: 'none', fontWeight: 600, fontSize: '0.9em', padding: '6px 10px' }}
+        >
+          <FontAwesomeIcon icon={faArrowLeft} style={{ marginRight: 6 }} />
+          Voltar
+        </button>
+        <h2 style={{ flex: 1, textAlign: 'center', margin: 0 }}>Editar Paciente #{id}</h2>
+        <div style={{ width: 80 }} />
+      </div>
 
       <Formik
         initialValues={initialValues}
@@ -95,11 +112,11 @@ export default function UpdatePatient() {
 
           try {
             await updatePaciente(id, payload);
-            alert('Paciente atualizado com sucesso!');
+            toast('Paciente atualizado com sucesso!', 'success');
             navigate('/listar');
           } catch (error) {
             console.error('Erro ao atualizar paciente', error);
-            alert('Falha ao atualizar paciente: ' + (error?.message || 'Erro desconhecido'));
+            toast('Falha ao atualizar: ' + (error?.message || 'Erro desconhecido'), 'error');
           } finally {
             setSubmitting(false);
           }
@@ -108,58 +125,58 @@ export default function UpdatePatient() {
         {({ values, handleSubmit, isSubmitting, setFieldValue }) => (
           <LargeForm onSubmit={handleSubmit}>
             <FormInner>
-              <InputField name="nome" label="Nome" />
-              <InputField name="nrResponsavel" label="Número do Responsável" type="number" />
+              <InputField name="nome"          label="Nome do Paciente" />
+              <InputField name="nrResponsavel" label="Contato do Responsável" type="number" />
               <InputField name="nmResponsavel" label="Nome do Responsável" />
 
               <Specializations>
-                <SpecSection>
+                <SpecSection active={values.fonoEnabled} color="#67c2c7">
                   <label>
                     <Field
                       type="checkbox"
                       name="fonoEnabled"
                       checked={values.fonoEnabled}
                       onChange={() => setFieldValue('fonoEnabled', !values.fonoEnabled)}
-                    />{' '}
+                    />
                     Fonoaudiologia
                   </label>
-                  <InputField name="fonoPreco" label="Valor sessão (R$)" type="number" disabled={!values.fonoEnabled} />
-                  <InputField name="fonoHoras" label="Horas de sessão" type="number" disabled={!values.fonoEnabled} />
+                  <InputField name="fonoPreco"     label="Valor sessão (R$)"   type="number" disabled={!values.fonoEnabled} />
+                  <InputField name="fonoHoras"     label="Horas de sessão"     type="number" disabled={!values.fonoEnabled} />
                   <InputField name="fonoReembolso" label="Reembolso informado" type="number" disabled={!values.fonoEnabled} />
                 </SpecSection>
 
-                <SpecSection>
+                <SpecSection active={values.toEnabled} color="#88bd31">
                   <label>
                     <Field
                       type="checkbox"
                       name="toEnabled"
                       checked={values.toEnabled}
                       onChange={() => setFieldValue('toEnabled', !values.toEnabled)}
-                    />{' '}
+                    />
                     Terapia Ocupacional
                   </label>
-                  <InputField name="toPreco" label="Valor sessão (R$)" type="number" disabled={!values.toEnabled} />
-                  <InputField name="toHoras" label="Horas de sessão" type="number" disabled={!values.toEnabled} />
+                  <InputField name="toPreco"     label="Valor sessão (R$)"   type="number" disabled={!values.toEnabled} />
+                  <InputField name="toHoras"     label="Horas de sessão"     type="number" disabled={!values.toEnabled} />
                   <InputField name="toReembolso" label="Reembolso informado" type="number" disabled={!values.toEnabled} />
                 </SpecSection>
 
-                <SpecSection>
+                <SpecSection active={values.abaEnabled} color="#80529b">
                   <label>
                     <Field
                       type="checkbox"
                       name="abaEnabled"
                       checked={values.abaEnabled}
                       onChange={() => setFieldValue('abaEnabled', !values.abaEnabled)}
-                    />{' '}
+                    />
                     Terapia ABA
                   </label>
-                  <InputField name="abaPreco" label="Valor do pacote (R$)" type="number" disabled={!values.abaEnabled} />
-                  <InputField name="abaReembolso" label="Reembolso informado" type="number" disabled={!values.abaEnabled} />
+                  <InputField name="abaPreco"     label="Valor do pacote (R$)" type="number" disabled={!values.abaEnabled} />
+                  <InputField name="abaReembolso" label="Reembolso informado"  type="number" disabled={!values.abaEnabled} />
                 </SpecSection>
               </Specializations>
 
               <FullWidthActions>
-                <Button style={{width: '200px'}} type="submit" disabled={isSubmitting}>
+                <Button style={{ width: 200 }} type="submit" disabled={isSubmitting}>
                   {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                 </Button>
               </FullWidthActions>
