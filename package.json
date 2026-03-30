@@ -1,0 +1,50 @@
+{
+  "name": "espaco-therapy-kids",
+  "version": "1.0.0",
+  "description": "Sistema de gestão de pacientes - Espaço Therapy Kids",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "package": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "better-sqlite3": "^11.10.0",
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "@fortawesome/fontawesome-svg-core": "^7.1.0",
+    "@fortawesome/free-solid-svg-icons": "^7.1.0",
+    "@fortawesome/react-fontawesome": "^3.1.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "electron": "^33.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "formik": "^2.4.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^6.8.1",
+    "styled-components": "^5.3.11",
+    "yup": "^0.32.11"
+  },
+  "build": {
+    "appId": "com.espacotherapykids.app",
+    "productName": "Espaço Therapy Kids",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
