@@ -31,7 +31,32 @@ db.exec(`
     supabase_id  TEXT PRIMARY KEY,
     deletado_em  TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS tb_agenda (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    paciente_id     INTEGER NOT NULL,
+    dia_semana      TEXT NOT NULL,
+    horario         TEXT NOT NULL,
+    tipo_terapia    TEXT NOT NULL,
+    profissional_id INTEGER,
+    FOREIGN KEY(paciente_id)     REFERENCES tb_paciente(id)     ON DELETE CASCADE,
+    FOREIGN KEY(profissional_id) REFERENCES tb_profissional(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS tb_profissional (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome         TEXT NOT NULL,
+    especialidade TEXT NOT NULL
+  );
 `)
+
+// Migrações para bancos já existentes (ADD COLUMN ignora se já existir)
+for (const sql of [
+  'ALTER TABLE tb_paciente ADD COLUMN endereco TEXT',
+  'ALTER TABLE tb_agenda   ADD COLUMN profissional_id INTEGER',
+]) {
+  try { db.exec(sql) } catch (_) {}
+}
 
 // ─── Supabase (opcional) ──────────────────────────────────────────────────────
 // Configura via arquivo .env com MAIN_VITE_SUPABASE_URL e MAIN_VITE_SUPABASE_ANON_KEY
@@ -51,39 +76,42 @@ function rowToDto(row) {
   return {
     codigo: row.id,
     nome: row.nm_paciente,
+    endereco: row.endereco ?? null,
     nrResponsavel: row.nr_responsavel,
     nmResponsavel: row.nm_responsavel,
     fono: {
       preco: row.preco_fono ?? 0,
       horas: row.horas_fono ?? 0,
-      reembolsoInformado: row.reembolso_fono ?? 0,
+      reembolsoInformado: row.reembolso_fono ?? null,
     },
     terapiaOcupacional: {
       preco: row.preco_to ?? 0,
       horas: row.horas_to ?? 0,
-      reembolsoInformado: row.reembolso_to ?? 0,
+      reembolsoInformado: row.reembolso_to ?? null,
     },
     aba: {
       preco: row.preco_aba ?? 0,
       horas: 1,
-      reembolsoInformado: row.reembolso_aba ?? 0,
+      reembolsoInformado: row.reembolso_aba ?? null,
     },
   }
 }
 
 function dtoToColumns(dto) {
+  const toNum = (v) => (v === '' || v === null || v === undefined ? null : Number(v))
   return {
     nr_responsavel: String(dto.nrResponsavel ?? ''),
     nm_responsavel: dto.nmResponsavel ?? '',
-    nm_paciente: dto.nome ?? '',
-    preco_fono: dto.fono?.preco ?? 0,
-    horas_fono: dto.fono?.horas ?? 0,
-    reembolso_fono: dto.fono?.reembolsoInformado ?? 0,
-    preco_to: dto.terapiaOcupacional?.preco ?? 0,
-    horas_to: dto.terapiaOcupacional?.horas ?? 0,
-    reembolso_to: dto.terapiaOcupacional?.reembolsoInformado ?? 0,
-    preco_aba: dto.aba?.preco ?? 0,
-    reembolso_aba: dto.aba?.reembolsoInformado ?? 0,
+    nm_paciente:    dto.nome ?? '',
+    endereco:       dto.endereco ?? null,
+    preco_fono:     dto.fono?.preco ?? 0,
+    horas_fono:     dto.fono?.horas ?? 0,
+    reembolso_fono: toNum(dto.fono?.reembolsoInformado),
+    preco_to:       dto.terapiaOcupacional?.preco ?? 0,
+    horas_to:       dto.terapiaOcupacional?.horas ?? 0,
+    reembolso_to:   toNum(dto.terapiaOcupacional?.reembolsoInformado),
+    preco_aba:      dto.aba?.preco ?? 0,
+    reembolso_aba:  toNum(dto.aba?.reembolsoInformado),
   }
 }
 
@@ -116,12 +144,12 @@ function createPaciente(dto) {
   const cols = dtoToColumns(dto)
   const result = db.prepare(`
     INSERT INTO tb_paciente
-      (nr_responsavel, nm_responsavel, nm_paciente,
+      (nr_responsavel, nm_responsavel, nm_paciente, endereco,
        preco_fono, horas_fono, reembolso_fono,
        preco_to, horas_to, reembolso_to,
        preco_aba, reembolso_aba, sincronizado)
     VALUES
-      (@nr_responsavel, @nm_responsavel, @nm_paciente,
+      (@nr_responsavel, @nm_responsavel, @nm_paciente, @endereco,
        @preco_fono, @horas_fono, @reembolso_fono,
        @preco_to, @horas_to, @reembolso_to,
        @preco_aba, @reembolso_aba, 0)
@@ -139,6 +167,7 @@ function updatePaciente(id, dto) {
       nr_responsavel = @nr_responsavel,
       nm_responsavel = @nm_responsavel,
       nm_paciente    = @nm_paciente,
+      endereco       = @endereco,
       preco_fono     = @preco_fono,
       horas_fono     = @horas_fono,
       reembolso_fono = @reembolso_fono,
@@ -321,4 +350,73 @@ async function syncToSupabase() {
   }
 }
 
-export default { listPacientes, getPacienteById, createPaciente, updatePaciente, deletePaciente, exportToXlsx }
+// ─── Agenda ──────────────────────────────────────────────────────────────────
+
+const DIA_ORDER = `CASE dia_semana
+  WHEN 'Segunda'  THEN 1
+  WHEN 'Terça'    THEN 2
+  WHEN 'Quarta'   THEN 3
+  WHEN 'Quinta'   THEN 4
+  WHEN 'Sexta'    THEN 5
+  WHEN 'Sábado'   THEN 6
+  ELSE 7
+END`
+
+const AGENDA_SELECT = `
+  SELECT a.id, a.paciente_id, a.dia_semana, a.horario, a.tipo_terapia,
+         a.profissional_id, p.nm_paciente,
+         prof.nome AS nm_profissional
+  FROM tb_agenda a
+  JOIN tb_paciente p ON p.id = a.paciente_id
+  LEFT JOIN tb_profissional prof ON prof.id = a.profissional_id
+`
+
+function listAgenda() {
+  return db.prepare(`${AGENDA_SELECT} ORDER BY ${DIA_ORDER}, a.horario ASC`).all()
+}
+
+function createAgendaSlot({ paciente_id, dia_semana, horario, tipo_terapia, profissional_id }) {
+  const result = db.prepare(`
+    INSERT INTO tb_agenda (paciente_id, dia_semana, horario, tipo_terapia, profissional_id)
+    VALUES (@paciente_id, @dia_semana, @horario, @tipo_terapia, @profissional_id)
+  `).run({
+    paciente_id:     Number(paciente_id),
+    dia_semana,
+    horario,
+    tipo_terapia,
+    profissional_id: profissional_id ? Number(profissional_id) : null,
+  })
+
+  return db.prepare(`${AGENDA_SELECT} WHERE a.id = ?`).get(result.lastInsertRowid)
+}
+
+// ─── Profissionais ────────────────────────────────────────────────────────────
+
+function listProfissionais() {
+  return db.prepare('SELECT * FROM tb_profissional ORDER BY nome ASC').all()
+}
+
+function createProfissional({ nome, especialidade }) {
+  const result = db.prepare(`
+    INSERT INTO tb_profissional (nome, especialidade) VALUES (@nome, @especialidade)
+  `).run({ nome: nome.trim(), especialidade })
+  return db.prepare('SELECT * FROM tb_profissional WHERE id = ?').get(result.lastInsertRowid)
+}
+
+function deleteProfissional(id) {
+  const result = db.prepare('DELETE FROM tb_profissional WHERE id = ?').run(Number(id))
+  if (result.changes === 0) throw new Error('Profissional não encontrado')
+  return { success: true }
+}
+
+function deleteAgendaSlot(id) {
+  const result = db.prepare('DELETE FROM tb_agenda WHERE id = ?').run(Number(id))
+  if (result.changes === 0) throw new Error('Horário não encontrado')
+  return { success: true }
+}
+
+export default {
+  listPacientes, getPacienteById, createPaciente, updatePaciente, deletePaciente, exportToXlsx,
+  listAgenda, createAgendaSlot, deleteAgendaSlot,
+  listProfissionais, createProfissional, deleteProfissional,
+}

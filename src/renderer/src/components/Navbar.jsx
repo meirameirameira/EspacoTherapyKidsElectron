@@ -4,7 +4,7 @@ import '../styles/global.css'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import logoEspaco from '../assets/logo-cereb.png'
 
-export default function Navbar() {
+export default function Navbar({ onMenuToggle }) {
   const [term, setTerm] = useState('')
   const navigate = useNavigate()
 
@@ -25,6 +25,16 @@ export default function Navbar() {
 
   return (
     <nav className="navbar" style={{ WebkitAppRegion: 'drag' }}>
+      {/* Hamburger menu — no-drag */}
+      <button
+        className="hamburger-btn"
+        onClick={onMenuToggle}
+        title="Menu"
+        style={{ WebkitAppRegion: 'no-drag' }}
+      >
+        <FontAwesomeIcon icon="fa-solid fa-bars" />
+      </button>
+
       {/* Logo — no-drag so the link still works */}
       <Link
         className="nav-left"

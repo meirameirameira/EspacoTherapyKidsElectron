@@ -14,6 +14,10 @@ import {
   faChevronRight,
   faXmark,
   faFilter,
+  faBars,
+  faUsers,
+  faCalendarDays,
+  faUserDoctor,
 } from '@fortawesome/free-solid-svg-icons';
 
 library.add(
@@ -31,4 +35,8 @@ library.add(
   faChevronRight,
   faXmark,
   faFilter,
+  faBars,
+  faUsers,
+  faCalendarDays,
+  faUserDoctor,
 );

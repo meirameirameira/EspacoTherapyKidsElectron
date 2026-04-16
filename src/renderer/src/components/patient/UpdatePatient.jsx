@@ -23,9 +23,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 
 const schema = Yup.object({
-  nome: Yup.string().required('Obrigatório'),
-  nrResponsavel: Yup.number().typeError('Número inválido').positive().required('Obrigatório'),
+  nome:          Yup.string().required('Obrigatório'),
+  nrResponsavel: Yup.string().required('Obrigatório'),
   nmResponsavel: Yup.string().required('Obrigatório'),
+  endereco:      Yup.string().nullable(),
+  fonoReembolso: Yup.number().min(0).nullable().notRequired(),
+  toReembolso:   Yup.number().min(0).nullable().notRequired(),
+  abaReembolso:  Yup.number().min(0).nullable().notRequired(),
 });
 
 export default function UpdatePatient() {
@@ -54,20 +58,21 @@ export default function UpdatePatient() {
 
   const initialValues = useMemo(
     () => ({
-      nome: paciente?.nome || '',
-      nrResponsavel: paciente?.nrResponsavel ?? '',
+      nome:          paciente?.nome || '',
       nmResponsavel: paciente?.nmResponsavel || '',
-      fonoEnabled: !!(paciente?.fono?.preco > 0 && paciente?.fono?.horas > 0),
-      fonoPreco: paciente?.fono?.preco ?? '',
-      fonoHoras: paciente?.fono?.horas ?? '',
+      nrResponsavel: paciente?.nrResponsavel ?? '',
+      endereco:      paciente?.endereco || '',
+      fonoEnabled:   !!(paciente?.fono?.preco > 0 && paciente?.fono?.horas > 0),
+      fonoPreco:     paciente?.fono?.preco ?? '',
+      fonoHoras:     paciente?.fono?.horas ?? '',
       fonoReembolso: paciente?.fono?.reembolsoInformado ?? '',
-      toEnabled: !!(paciente?.terapiaOcupacional?.preco > 0 && paciente?.terapiaOcupacional?.horas > 0),
-      toPreco: paciente?.terapiaOcupacional?.preco ?? '',
-      toHoras: paciente?.terapiaOcupacional?.horas ?? '',
-      toReembolso: paciente?.terapiaOcupacional?.reembolsoInformado ?? '',
-      abaEnabled: !!(paciente?.aba?.preco > 0),
-      abaPreco: paciente?.aba?.preco ?? '',
-      abaReembolso: paciente?.aba?.reembolsoInformado ?? '',
+      toEnabled:     !!(paciente?.terapiaOcupacional?.preco > 0 && paciente?.terapiaOcupacional?.horas > 0),
+      toPreco:       paciente?.terapiaOcupacional?.preco ?? '',
+      toHoras:       paciente?.terapiaOcupacional?.horas ?? '',
+      toReembolso:   paciente?.terapiaOcupacional?.reembolsoInformado ?? '',
+      abaEnabled:    !!(paciente?.aba?.preco > 0),
+      abaPreco:      paciente?.aba?.preco ?? '',
+      abaReembolso:  paciente?.aba?.reembolsoInformado ?? '',
     }),
     [paciente]
   );
@@ -94,20 +99,21 @@ export default function UpdatePatient() {
         validationSchema={schema}
         enableReinitialize
         onSubmit={async (vals, { setSubmitting }) => {
-          const toNum = (v) => (v === '' || v === null || v === undefined ? undefined : Number(v));
+          const toNum = (v) => (v === '' || v == null) ? null : Number(v);
           const payload = {
-            nome: vals.nome?.trim(),
+            nome:          vals.nome?.trim(),
             nmResponsavel: vals.nmResponsavel?.trim(),
             nrResponsavel: Number(vals.nrResponsavel),
+            endereco:      vals.endereco?.trim() || null,
             fono: vals.fonoEnabled
               ? { preco: toNum(vals.fonoPreco), horas: Math.max(1, Number(vals.fonoHoras)), reembolsoInformado: toNum(vals.fonoReembolso) }
-              : { preco: 0, horas: 0, reembolsoInformado: 0 },
+              : { preco: 0, horas: 0, reembolsoInformado: null },
             terapiaOcupacional: vals.toEnabled
               ? { preco: toNum(vals.toPreco), horas: Math.max(1, Number(vals.toHoras)), reembolsoInformado: toNum(vals.toReembolso) }
-              : { preco: 0, horas: 0, reembolsoInformado: 0 },
+              : { preco: 0, horas: 0, reembolsoInformado: null },
             aba: vals.abaEnabled
               ? { preco: toNum(vals.abaPreco), horas: 1, reembolsoInformado: toNum(vals.abaReembolso) }
-              : { preco: 0, horas: 1, reembolsoInformado: 0 },
+              : { preco: 0, horas: 1, reembolsoInformado: null },
           };
 
           try {
@@ -126,8 +132,9 @@ export default function UpdatePatient() {
           <LargeForm onSubmit={handleSubmit}>
             <FormInner>
               <InputField name="nome"          label="Nome do Paciente" />
-              <InputField name="nrResponsavel" label="Contato do Responsável" type="number" />
               <InputField name="nmResponsavel" label="Nome do Responsável" />
+              <InputField name="nrResponsavel" label="Contato do Responsável" type="text" />
+              <InputField name="endereco"      label="Endereço" />
 
               <Specializations>
                 <SpecSection active={values.fonoEnabled} color="#67c2c7">

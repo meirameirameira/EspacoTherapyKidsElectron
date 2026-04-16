@@ -19,36 +19,21 @@ import {
 } from '../../styles/SectionsLayout';
 
 const schema = Yup.object({
-  nome: Yup.string().required('Obrigatório'),
+  nome:          Yup.string().required('Obrigatório'),
   nrResponsavel: Yup.string().required('Obrigatório'),
   nmResponsavel: Yup.string().required('Obrigatório'),
-  fonoEnabled: Yup.boolean(),
-  fonoPreco: Yup.number().when('fonoEnabled', {
-    is: true, then: s => s.positive().required('Obrigatório'), otherwise: s => s.notRequired()
-  }),
-  fonoHoras: Yup.number().when('fonoEnabled', {
-    is: true, then: s => s.integer().positive().required('Obrigatório'), otherwise: s => s.notRequired()
-  }),
-  fonoReembolso: Yup.number().when('fonoEnabled', {
-    is: true, then: s => s.positive().required('Obrigatório'), otherwise: s => s.notRequired()
-  }),
-  toEnabled: Yup.boolean(),
-  toPreco: Yup.number().when('toEnabled', {
-    is: true, then: s => s.positive().required('Obrigatório'), otherwise: s => s.notRequired()
-  }),
-  toHoras: Yup.number().when('toEnabled', {
-    is: true, then: s => s.integer().positive().required('Obrigatório'), otherwise: s => s.notRequired()
-  }),
-  toReembolso: Yup.number().when('toEnabled', {
-    is: true, then: s => s.positive().required('Obrigatório'), otherwise: s => s.notRequired()
-  }),
-  abaEnabled: Yup.boolean(),
-  abaPreco: Yup.number().when('abaEnabled', {
-    is: true, then: s => s.positive().required('Obrigatório'), otherwise: s => s.notRequired()
-  }),
-  abaReembolso: Yup.number().when('abaEnabled', {
-    is: true, then: s => s.positive().required('Obrigatório'), otherwise: s => s.notRequired()
-  }),
+  endereco:      Yup.string().nullable(),
+  fonoEnabled:   Yup.boolean(),
+  fonoPreco:     Yup.number().when('fonoEnabled', { is: true, then: s => s.positive().required('Obrigatório'), otherwise: s => s.notRequired() }),
+  fonoHoras:     Yup.number().when('fonoEnabled', { is: true, then: s => s.integer().positive().required('Obrigatório'), otherwise: s => s.notRequired() }),
+  fonoReembolso: Yup.number().min(0).nullable().notRequired(),
+  toEnabled:     Yup.boolean(),
+  toPreco:       Yup.number().when('toEnabled', { is: true, then: s => s.positive().required('Obrigatório'), otherwise: s => s.notRequired() }),
+  toHoras:       Yup.number().when('toEnabled', { is: true, then: s => s.integer().positive().required('Obrigatório'), otherwise: s => s.notRequired() }),
+  toReembolso:   Yup.number().min(0).nullable().notRequired(),
+  abaEnabled:    Yup.boolean(),
+  abaPreco:      Yup.number().when('abaEnabled', { is: true, then: s => s.positive().required('Obrigatório'), otherwise: s => s.notRequired() }),
+  abaReembolso:  Yup.number().min(0).nullable().notRequired(),
 });
 
 export default function CreatePatient() {
@@ -71,39 +56,29 @@ export default function CreatePatient() {
 
       <Formik
         initialValues={{
-          nome: '',
-          nrResponsavel: '',
-          nmResponsavel: '',
-          fonoEnabled: false,
-          fonoPreco: '',
-          fonoHoras: '',
-          fonoReembolso: '',
-          toEnabled: false,
-          toPreco: '',
-          toHoras: '',
-          toReembolso: '',
-          abaEnabled: false,
-          abaPreco: '',
-          abaReembolso: '',
+          nome: '', nrResponsavel: '', nmResponsavel: '', endereco: '',
+          fonoEnabled: false, fonoPreco: '', fonoHoras: '', fonoReembolso: '',
+          toEnabled:   false, toPreco:   '', toHoras:   '', toReembolso:   '',
+          abaEnabled:  false, abaPreco:  '',               abaReembolso:  '',
         }}
         validationSchema={schema}
         onSubmit={async (vals, { resetForm }) => {
-          const toNum = (v) =>
-            v === '' || v === null || v === undefined ? undefined : Number(v);
+          const toNum = (v) => (v === '' || v == null) ? null : Number(v);
 
           const paciente = {
-            nome: vals.nome?.trim(),
+            nome:          vals.nome?.trim(),
             nmResponsavel: vals.nmResponsavel?.trim(),
             nrResponsavel: Number(vals.nrResponsavel),
+            endereco:      vals.endereco?.trim() || null,
             fono: vals.fonoEnabled
               ? { preco: toNum(vals.fonoPreco), horas: Math.max(1, Number(vals.fonoHoras)), reembolsoInformado: toNum(vals.fonoReembolso) }
-              : { preco: 0, horas: 0, reembolsoInformado: 1 },
+              : { preco: 0, horas: 0, reembolsoInformado: null },
             terapiaOcupacional: vals.toEnabled
               ? { preco: toNum(vals.toPreco), horas: Math.max(1, Number(vals.toHoras)), reembolsoInformado: toNum(vals.toReembolso) }
-              : { preco: 0, horas: 0, reembolsoInformado: 1 },
+              : { preco: 0, horas: 0, reembolsoInformado: null },
             aba: vals.abaEnabled
               ? { preco: toNum(vals.abaPreco), horas: 1, reembolsoInformado: toNum(vals.abaReembolso) }
-              : { preco: 0, horas: 1, reembolsoInformado: 1 },
+              : { preco: 0, horas: 1, reembolsoInformado: null },
           };
 
           try {
@@ -119,9 +94,10 @@ export default function CreatePatient() {
         {({ values, handleSubmit, isSubmitting, setFieldValue }) => (
           <LargeForm onSubmit={handleSubmit}>
             <FormInner>
-              <InputField name="nome" label="Nome do Paciente" />
-              <InputField name="nrResponsavel" label="Contato do Responsável" type="text" />
+              <InputField name="nome"          label="Nome do Paciente" />
               <InputField name="nmResponsavel" label="Nome do Responsável" />
+              <InputField name="nrResponsavel" label="Contato do Responsável" type="text" />
+              <InputField name="endereco"      label="Endereço" />
 
               <Specializations>
                 <SpecSection active={values.fonoEnabled} color="#67c2c7">

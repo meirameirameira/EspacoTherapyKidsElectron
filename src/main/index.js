@@ -40,6 +40,14 @@ app.whenReady().then(() => {
   ipcMain.handle('pacientes:update', (_, id, data) => db.updatePaciente(id, data))
   ipcMain.handle('pacientes:delete', (_, id) => db.deletePaciente(id))
 
+  ipcMain.handle('agenda:list',   ()         => db.listAgenda())
+  ipcMain.handle('agenda:create', (_, data)  => db.createAgendaSlot(data))
+  ipcMain.handle('agenda:delete', (_, id)    => db.deleteAgendaSlot(id))
+
+  ipcMain.handle('profissionais:list',   ()        => db.listProfissionais())
+  ipcMain.handle('profissionais:create', (_, data) => db.createProfissional(data))
+  ipcMain.handle('profissionais:delete', (_, id)   => db.deleteProfissional(id))
+
   ipcMain.handle('pacientes:export', async () => {
     const { filePath, canceled } = await dialog.showSaveDialog({
       defaultPath: 'pacientes.xlsx',
