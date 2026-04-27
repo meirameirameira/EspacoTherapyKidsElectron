@@ -52,6 +52,7 @@ export default function Agenda() {
   const [profissionais, setProfissionais] = useState([])
   const [loading, setLoading]           = useState(true)
   const [showModal, setShowModal]       = useState(false)
+  const [editingSlot, setEditingSlot]   = useState(null)
   const [form, setForm]                 = useState({ paciente_id:'', dia_semana:'Segunda', horario:'08:00', tipo_terapia:'Fonoaudiologia', profissional_id:'' })
   const [saving, setSaving]             = useState(false)
   const [buscaPac, setBuscaPac]         = useState('')
@@ -67,7 +68,7 @@ export default function Agenda() {
     [pacientes, form.paciente_id]
   )
   const profissionaisDaEsp = useMemo(
-    () => profissionais.filter(p => p.especialidade === form.tipo_terapia),
+    () => profissionais.filter(p => p.especialidades?.includes(form.tipo_terapia)),
     [profissionais, form.tipo_terapia]
   )
 
@@ -104,22 +105,49 @@ export default function Agenda() {
   }
   function goToday() { setYear(today.getFullYear()); setMonth(today.getMonth()) }
 
-  async function handleSave(e) {
+  function abrirEdicao(slot) {
+    setEditingSlot(slot)
+    setForm({
+      paciente_id:     String(slot.paciente_id),
+      dia_semana:      slot.dia_semana,
+      horario:         slot.horario,
+      tipo_terapia:    slot.tipo_terapia,
+      profissional_id: slot.profissional_id ? String(slot.profissional_id) : '',
+    })
+    setBuscaPac('')
+    setShowModal(true)
+  }
+
+  function fecharModal() {
+    setShowModal(false)
+    setEditingSlot(null)
+    setBuscaPac('')
+    setDropdownAberto(false)
+    setForm({ paciente_id:'', dia_semana:'Segunda', horario:'08:00', tipo_terapia:'Fonoaudiologia', profissional_id:'' })
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!form.paciente_id) return addToast('Selecione um paciente', 'error')
     if (!form.horario)     return addToast('Informe o horário', 'error')
+    const payload = {
+      paciente_id:     Number(form.paciente_id),
+      dia_semana:      form.dia_semana,
+      horario:         form.horario,
+      tipo_terapia:    form.tipo_terapia,
+      profissional_id: form.profissional_id ? Number(form.profissional_id) : null,
+    }
     setSaving(true)
     try {
-      const novoSlot = await window.api.createAgendaSlot({
-        paciente_id:     Number(form.paciente_id),
-        dia_semana:      form.dia_semana,
-        horario:         form.horario,
-        tipo_terapia:    form.tipo_terapia,
-        profissional_id: form.profissional_id ? Number(form.profissional_id) : null,
-      })
-      setSlots(prev => [...prev, novoSlot])
-      addToast('Horário adicionado!', 'success')
+      if (editingSlot) {
+        const atualizado = await window.api.updateAgendaSlot(editingSlot.id, payload)
+        setSlots(prev => prev.map(s => s.id === editingSlot.id ? atualizado : s))
+      } else {
+        const novoSlot = await window.api.createAgendaSlot(payload)
+        setSlots(prev => [...prev, novoSlot])
+      }
       fecharModal()
+      addToast(editingSlot ? 'Horário atualizado!' : 'Horário adicionado!', 'success')
     } catch {
       addToast('Erro ao salvar horário', 'error')
     } finally {
@@ -127,17 +155,11 @@ export default function Agenda() {
     }
   }
 
-  function fecharModal() {
-    setShowModal(false)
-    setBuscaPac('')
-    setDropdownAberto(false)
-  }
-
   async function handleDelete(id) {
     try {
       await window.api.deleteAgendaSlot(id)
-      addToast('Horário removido', 'success')
       setSlots(prev => prev.filter(s => s.id !== id))
+      addToast('Horário removido', 'success')
     } catch {
       addToast('Erro ao remover horário', 'error')
     }
@@ -236,7 +258,8 @@ export default function Agenda() {
                           key={slot.id}
                           className="cal-slot"
                           style={{ background: cor.bg, borderLeft: `3px solid ${cor.border}`, color: cor.text }}
-                          title={`${slot.horario} — ${slot.nm_paciente} (${slot.tipo_terapia})${slot.nm_profissional ? ' · ' + slot.nm_profissional : ''}`}
+                          title={`${slot.horario} — ${slot.nm_paciente} (${slot.tipo_terapia})${slot.nm_profissional ? ' · ' + slot.nm_profissional : ''}\nClique duplo para editar`}
+                          onDoubleClick={e => { e.stopPropagation(); abrirEdicao(slot) }}
                         >
                           <span className="cal-slot-hora">{slot.horario}</span>
                           <span className="cal-slot-nome">{slot.nm_paciente}</span>
@@ -263,13 +286,13 @@ export default function Agenda() {
         <div className="agenda-modal-overlay" onClick={fecharModal}>
           <div className="agenda-modal" onClick={e => e.stopPropagation()}>
             <div className="agenda-modal-header">
-              <h3>Novo Horário</h3>
+              <h3>{editingSlot ? 'Editar Horário' : 'Novo Horário'}</h3>
               <button className="agenda-modal-close" onClick={fecharModal}>
                 <FontAwesomeIcon icon="fa-solid fa-xmark" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="agenda-modal-form">
+            <form onSubmit={handleSubmit} className="agenda-modal-form">
               <label className="agenda-label">
                 Paciente
                 <div className="pac-dropdown-wrapper">
@@ -366,7 +389,7 @@ export default function Agenda() {
                   Cancelar
                 </button>
                 <button type="submit" disabled={saving}>
-                  {saving ? 'Salvando...' : 'Salvar'}
+                  {saving ? 'Salvando...' : editingSlot ? 'Atualizar' : 'Salvar'}
                 </button>
               </div>
             </form>

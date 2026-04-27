@@ -146,12 +146,9 @@ export default function PatientView() {
           <InfoCell label="Paciente"    value={paciente.nome} />
           <InfoCell label="Responsável" value={paciente.nmResponsavel} />
           <InfoCell label="Contato"     value={paciente.nrResponsavel} />
-          {paciente.endereco && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', borderTop: '1px solid #f0eff0', paddingTop: 10, marginTop: 4 }}>
-              <div style={{ fontSize: '0.82em', color: '#888', marginBottom: 2 }}>Endereço</div>
-              <div style={{ fontWeight: 600, color: '#333' }}>{paciente.endereco}</div>
-            </div>
-          )}
+          <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #f0eff0', paddingTop: 10, marginTop: 4 }}>
+            <InfoCell label="Endereço" value={paciente.endereco} />
+          </div>
         </div>
 
         {/* Therapy cards */}

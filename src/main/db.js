@@ -58,6 +58,21 @@ for (const sql of [
   try { db.exec(sql) } catch (_) {}
 }
 
+// Migrações para novas colunas de profissional
+for (const sql of [
+  'ALTER TABLE tb_profissional ADD COLUMN telefone TEXT',
+  'ALTER TABLE tb_profissional ADD COLUMN email TEXT',
+]) {
+  try { db.exec(sql) } catch (_) {}
+}
+
+// Migra especialidade de texto único para JSON array (se ainda não migrado)
+try {
+  const rows = db.prepare("SELECT id, especialidade FROM tb_profissional WHERE especialidade NOT LIKE '[%'").all()
+  const upd  = db.prepare('UPDATE tb_profissional SET especialidade = ? WHERE id = ?')
+  for (const row of rows) upd.run(JSON.stringify([row.especialidade]), row.id)
+} catch (_) {}
+
 // ─── Supabase (opcional) ──────────────────────────────────────────────────────
 // Configura via arquivo .env com MAIN_VITE_SUPABASE_URL e MAIN_VITE_SUPABASE_ANON_KEY
 let supabase = null
@@ -390,17 +405,50 @@ function createAgendaSlot({ paciente_id, dia_semana, horario, tipo_terapia, prof
   return db.prepare(`${AGENDA_SELECT} WHERE a.id = ?`).get(result.lastInsertRowid)
 }
 
-// ─── Profissionais ────────────────────────────────────────────────────────────
-
-function listProfissionais() {
-  return db.prepare('SELECT * FROM tb_profissional ORDER BY nome ASC').all()
+function updateAgendaSlot(id, { paciente_id, dia_semana, horario, tipo_terapia, profissional_id }) {
+  const result = db.prepare(`
+    UPDATE tb_agenda
+    SET paciente_id = @paciente_id, dia_semana = @dia_semana, horario = @horario,
+        tipo_terapia = @tipo_terapia, profissional_id = @profissional_id
+    WHERE id = @id
+  `).run({
+    id:              Number(id),
+    paciente_id:     Number(paciente_id),
+    dia_semana,
+    horario,
+    tipo_terapia,
+    profissional_id: profissional_id ? Number(profissional_id) : null,
+  })
+  if (result.changes === 0) throw new Error('Horário não encontrado')
+  return db.prepare(`${AGENDA_SELECT} WHERE a.id = ?`).get(Number(id))
 }
 
-function createProfissional({ nome, especialidade }) {
+// ─── Profissionais ────────────────────────────────────────────────────────────
+
+function profissionalFromRow(row) {
+  let especialidades
+  try { especialidades = JSON.parse(row.especialidade) } catch { especialidades = [row.especialidade] }
+  return { id: row.id, nome: row.nome, telefone: row.telefone ?? null, email: row.email ?? null, especialidades }
+}
+
+function listProfissionais() {
+  return db.prepare('SELECT * FROM tb_profissional ORDER BY nome ASC').all().map(profissionalFromRow)
+}
+
+function createProfissional({ nome, telefone, email, especialidades }) {
   const result = db.prepare(`
-    INSERT INTO tb_profissional (nome, especialidade) VALUES (@nome, @especialidade)
-  `).run({ nome: nome.trim(), especialidade })
-  return db.prepare('SELECT * FROM tb_profissional WHERE id = ?').get(result.lastInsertRowid)
+    INSERT INTO tb_profissional (nome, especialidade, telefone, email)
+    VALUES (@nome, @esp, @telefone, @email)
+  `).run({ nome: nome.trim(), esp: JSON.stringify(especialidades), telefone: telefone || null, email: email || null })
+  return profissionalFromRow(db.prepare('SELECT * FROM tb_profissional WHERE id = ?').get(result.lastInsertRowid))
+}
+
+function updateProfissional(id, { nome, telefone, email, especialidades }) {
+  const result = db.prepare(`
+    UPDATE tb_profissional SET nome = @nome, especialidade = @esp, telefone = @telefone, email = @email WHERE id = @id
+  `).run({ id: Number(id), nome: nome.trim(), esp: JSON.stringify(especialidades), telefone: telefone || null, email: email || null })
+  if (result.changes === 0) throw new Error('Profissional não encontrado')
+  return profissionalFromRow(db.prepare('SELECT * FROM tb_profissional WHERE id = ?').get(Number(id)))
 }
 
 function deleteProfissional(id) {
@@ -417,6 +465,6 @@ function deleteAgendaSlot(id) {
 
 export default {
   listPacientes, getPacienteById, createPaciente, updatePaciente, deletePaciente, exportToXlsx,
-  listAgenda, createAgendaSlot, deleteAgendaSlot,
-  listProfissionais, createProfissional, deleteProfissional,
+  listAgenda, createAgendaSlot, updateAgendaSlot, deleteAgendaSlot,
+  listProfissionais, createProfissional, updateProfissional, deleteProfissional,
 }

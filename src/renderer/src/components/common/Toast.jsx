@@ -2,9 +2,13 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 const ToastContext = createContext(null);
 
+const _noop = () => {};
+
 export function useToast() {
   const ctx = useContext(ToastContext);
-  return ctx ?? (() => {});
+  const fn = ctx ?? _noop;
+  fn.addToast = fn;
+  return fn;
 }
 
 let _nextId = 0;

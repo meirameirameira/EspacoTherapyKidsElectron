@@ -6,6 +6,7 @@ import * as Yup from 'yup';
 import InputField from '../common/InputField';
 import Button from '../common/Button';
 import { fetchPacienteById, updatePaciente } from '../../api';
+import { maskPhone, phoneRegex } from '../../utils/phone';
 import { useToast } from '../common/Toast';
 import Spinner from '../common/Spinner';
 import '../../styles/global.css';
@@ -24,7 +25,7 @@ import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 
 const schema = Yup.object({
   nome:          Yup.string().required('Obrigatório'),
-  nrResponsavel: Yup.string().required('Obrigatório'),
+  nrResponsavel: Yup.string().required('Obrigatório').matches(phoneRegex, 'Ex: (11) 91234-5678'),
   nmResponsavel: Yup.string().required('Obrigatório'),
   endereco:      Yup.string().nullable(),
   fonoReembolso: Yup.number().min(0).nullable().notRequired(),
@@ -60,7 +61,7 @@ export default function UpdatePatient() {
     () => ({
       nome:          paciente?.nome || '',
       nmResponsavel: paciente?.nmResponsavel || '',
-      nrResponsavel: paciente?.nrResponsavel ?? '',
+      nrResponsavel: maskPhone(String(paciente?.nrResponsavel ?? '')),
       endereco:      paciente?.endereco || '',
       fonoEnabled:   !!(paciente?.fono?.preco > 0 && paciente?.fono?.horas > 0),
       fonoPreco:     paciente?.fono?.preco ?? '',
@@ -103,7 +104,7 @@ export default function UpdatePatient() {
           const payload = {
             nome:          vals.nome?.trim(),
             nmResponsavel: vals.nmResponsavel?.trim(),
-            nrResponsavel: Number(vals.nrResponsavel),
+            nrResponsavel: vals.nrResponsavel,
             endereco:      vals.endereco?.trim() || null,
             fono: vals.fonoEnabled
               ? { preco: toNum(vals.fonoPreco), horas: Math.max(1, Number(vals.fonoHoras)), reembolsoInformado: toNum(vals.fonoReembolso) }
@@ -133,7 +134,9 @@ export default function UpdatePatient() {
             <FormInner>
               <InputField name="nome"          label="Nome do Paciente" />
               <InputField name="nmResponsavel" label="Nome do Responsável" />
-              <InputField name="nrResponsavel" label="Contato do Responsável" type="text" />
+              <InputField name="nrResponsavel" label="Contato do Responsável" type="text"
+                onChange={e => setFieldValue('nrResponsavel', maskPhone(e.target.value))}
+                maxLength={15} />
               <InputField name="endereco"      label="Endereço" />
 
               <Specializations>

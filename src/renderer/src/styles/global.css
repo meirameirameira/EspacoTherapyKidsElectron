@@ -1004,8 +1004,15 @@ input:focus {
   margin: 0 auto;
 }
 
+.prof-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
 .prof-titulo {
-  margin: 0 0 24px;
+  margin: 0;
   font-size: 1.5em;
   color: var(--roxo);
   font-weight: 700;
@@ -1092,16 +1099,36 @@ input:focus {
 
 .prof-card-info {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 10px;
   flex: 1;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .prof-card-nome {
   font-weight: 600;
   font-size: 0.97em;
   color: #2b2b29;
+}
+
+.prof-modal {
+  max-width: 500px;
+}
+
+.prof-card-esps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.prof-card-contato {
+  display: flex;
+  gap: 14px;
+  font-size: 0.8em;
+  color: #888;
+  margin-top: 2px;
+  flex-wrap: wrap;
 }
 
 .prof-card-esp {
@@ -1112,6 +1139,44 @@ input:focus {
   white-space: nowrap;
 }
 
+.prof-esp-checks {
+  display: flex;
+  gap: 6px 14px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.prof-esp-checks-edit {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.prof-esp-check-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.85em;
+  font-weight: 500;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+}
+
+.prof-esp-check-label input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--roxo);
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.prof-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.prof-card-edit,
 .prof-card-del {
   background: none;
   border: none;
@@ -1122,9 +1187,71 @@ input:focus {
   font-size: 0.9em;
   border-radius: var(--radius);
   transition: color var(--transition), background var(--transition);
-  flex-shrink: 0;
+}
+.prof-card-edit:hover {
+  color: var(--roxo);
+  background: rgba(128,82,155,0.08);
+  box-shadow: none;
+  transform: none;
 }
 .prof-card-del:hover {
+  color: var(--deletar);
+  background: rgba(216,16,16,0.07);
+  box-shadow: none;
+  transform: none;
+}
+
+/* Card em modo edição */
+.prof-card-editando {
+  background: #faf9ff;
+}
+
+.prof-card-edit-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.prof-edit-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.prof-edit-select {
+  min-width: 180px;
+}
+
+.prof-card-edit-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.prof-card-confirm,
+.prof-card-cancel {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 4px 8px;
+  margin: 0;
+  font-size: 0.9em;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: color var(--transition), background var(--transition);
+}
+.prof-card-confirm {
+  color: var(--verde);
+}
+.prof-card-confirm:hover {
+  background: rgba(136,189,49,0.12);
+  box-shadow: none;
+  transform: none;
+}
+.prof-card-cancel {
+  color: #aaa;
+}
+.prof-card-cancel:hover {
   color: var(--deletar);
   background: rgba(216,16,16,0.07);
   box-shadow: none;

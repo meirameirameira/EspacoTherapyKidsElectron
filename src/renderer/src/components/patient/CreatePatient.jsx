@@ -5,6 +5,7 @@ import InputField from '../common/InputField';
 import Button from '../common/Button';
 import { createPaciente } from '../../api';
 import { useToast } from '../common/Toast';
+import { maskPhone, phoneRegex } from '../../utils/phone';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import '../../styles/global.css';
@@ -20,7 +21,7 @@ import {
 
 const schema = Yup.object({
   nome:          Yup.string().required('Obrigatório'),
-  nrResponsavel: Yup.string().required('Obrigatório'),
+  nrResponsavel: Yup.string().required('Obrigatório').matches(phoneRegex, 'Ex: (11) 91234-5678'),
   nmResponsavel: Yup.string().required('Obrigatório'),
   endereco:      Yup.string().nullable(),
   fonoEnabled:   Yup.boolean(),
@@ -68,7 +69,7 @@ export default function CreatePatient() {
           const paciente = {
             nome:          vals.nome?.trim(),
             nmResponsavel: vals.nmResponsavel?.trim(),
-            nrResponsavel: Number(vals.nrResponsavel),
+            nrResponsavel: vals.nrResponsavel,
             endereco:      vals.endereco?.trim() || null,
             fono: vals.fonoEnabled
               ? { preco: toNum(vals.fonoPreco), horas: Math.max(1, Number(vals.fonoHoras)), reembolsoInformado: toNum(vals.fonoReembolso) }
@@ -96,7 +97,9 @@ export default function CreatePatient() {
             <FormInner>
               <InputField name="nome"          label="Nome do Paciente" />
               <InputField name="nmResponsavel" label="Nome do Responsável" />
-              <InputField name="nrResponsavel" label="Contato do Responsável" type="text" />
+              <InputField name="nrResponsavel" label="Contato do Responsável" type="text"
+                onChange={e => setFieldValue('nrResponsavel', maskPhone(e.target.value))}
+                maxLength={15} />
               <InputField name="endereco"      label="Endereço" />
 
               <Specializations>

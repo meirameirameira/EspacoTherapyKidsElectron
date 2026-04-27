@@ -18,6 +18,7 @@ import {
   faUsers,
   faCalendarDays,
   faUserDoctor,
+  faCheck,
 } from '@fortawesome/free-solid-svg-icons';
 
 library.add(
@@ -39,4 +40,5 @@ library.add(
   faUsers,
   faCalendarDays,
   faUserDoctor,
+  faCheck,
 );

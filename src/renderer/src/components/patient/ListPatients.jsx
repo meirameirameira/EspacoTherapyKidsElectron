@@ -58,14 +58,19 @@ export default function ListPatients() {
   const totalPages = useMemo(() => Math.max(1, Math.ceil(pacientes.length / PAGE_SIZE)), [pacientes]);
   const paginated  = useMemo(() => pacientes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [pacientes, page]);
 
+  useEffect(() => {
+    setPage(p => Math.min(p, totalPages));
+  }, [totalPages]);
+
   const confirmarRemocao = (id) => setConfirmId(id);
 
   const remover = async () => {
+    const idToDelete = confirmId;
     try {
-      await deletePaciente(confirmId);
+      await deletePaciente(idToDelete);
       setConfirmId(null);
       toast('Paciente removido com sucesso.', 'success');
-      await load();
+      setPacientes(prev => prev.filter(p => p.codigo !== idToDelete));
     } catch (err) {
       setConfirmId(null);
       toast(err?.message || 'Falha ao remover paciente.', 'error');

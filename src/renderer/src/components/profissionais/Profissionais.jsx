@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useToast } from '../common/Toast'
+import { maskPhone, phoneRegex } from '../../utils/phone'
 
 const ESPECIALIDADES = ['Fonoaudiologia', 'Terapia Ocupacional', 'Terapia ABA']
 
@@ -10,11 +11,19 @@ const COR = {
   'Terapia ABA':         { bg: '#f3ecfa', border: '#80529b', text: '#4a2070' },
 }
 
+const FORM_VAZIO = { nome: '', telefone: '', email: '', especialidades: [] }
+
+function toggleEsp(arr, esp, checked) {
+  return checked ? [...arr, esp] : arr.filter(x => x !== esp)
+}
+
 export default function Profissionais() {
-  const [lista, setLista]     = useState([])
-  const [loading, setLoading] = useState(true)
-  const [form, setForm]       = useState({ nome: '', especialidade: 'Fonoaudiologia' })
-  const [saving, setSaving]   = useState(false)
+  const [lista, setLista]         = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [editingProf, setEditingProf] = useState(null)
+  const [form, setForm]           = useState(FORM_VAZIO)
+  const [saving, setSaving]       = useState(false)
   const { addToast } = useToast()
 
   const loadData = useCallback(async () => {
@@ -30,17 +39,61 @@ export default function Profissionais() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  async function handleSave(e) {
+  function abrirCadastro() {
+    setEditingProf(null)
+    setForm(FORM_VAZIO)
+    setShowModal(true)
+  }
+
+  function abrirEdicao(prof) {
+    setEditingProf(prof)
+    setForm({
+      nome:          prof.nome,
+      telefone:      maskPhone(prof.telefone ?? ''),
+      email:         prof.email ?? '',
+      especialidades: [...prof.especialidades],
+    })
+    setShowModal(true)
+  }
+
+  function fecharModal() {
+    setShowModal(false)
+    setEditingProf(null)
+    setForm(FORM_VAZIO)
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (!form.nome.trim()) return addToast('Informe o nome do profissional', 'error')
+    if (!form.nome.trim())           return addToast('Informe o nome', 'error')
+    if (!form.especialidades.length) return addToast('Selecione ao menos uma especialidade', 'error')
+    if (form.telefone && !phoneRegex.test(form.telefone))
+      return addToast('Telefone inválido — ex: (11) 91234-5678', 'error')
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      return addToast('Email inválido', 'error')
+
+    const dados = {
+      nome:          form.nome.trim(),
+      telefone:      form.telefone.trim() || null,
+      email:         form.email.trim() || null,
+      especialidades: form.especialidades,
+    }
     setSaving(true)
     try {
-      const novo = await window.api.createProfissional(form)
-      setLista(prev => [...prev, novo].sort((a, b) => a.nome.localeCompare(b.nome)))
-      setForm(f => ({ ...f, nome: '' }))
-      addToast('Profissional cadastrado!', 'success')
-    } catch {
-      addToast('Erro ao cadastrar profissional', 'error')
+      if (editingProf) {
+        const atualizado = await window.api.updateProfissional(editingProf.id, dados)
+        setLista(prev =>
+          prev.map(p => p.id === editingProf.id ? atualizado : p)
+              .sort((a, b) => a.nome.localeCompare(b.nome))
+        )
+        addToast('Profissional atualizado!', 'success')
+      } else {
+        const novo = await window.api.createProfissional(dados)
+        setLista(prev => [...prev, novo].sort((a, b) => a.nome.localeCompare(b.nome)))
+        addToast('Profissional cadastrado!', 'success')
+      }
+      fecharModal()
+    } catch (err) {
+      addToast('Erro ao salvar: ' + (err?.message || 'erro desconhecido'), 'error')
     } finally {
       setSaving(false)
     }
@@ -58,41 +111,14 @@ export default function Profissionais() {
 
   return (
     <div className="prof-page">
-      <h2 className="prof-titulo">Profissionais</h2>
+      <div className="prof-header">
+        <h2 className="prof-titulo">Profissionais</h2>
+        <button className="agenda-novo-btn" onClick={abrirCadastro}>
+          <FontAwesomeIcon icon="fa-solid fa-plus" style={{ marginRight: 8 }} />
+          Novo Profissional
+        </button>
+      </div>
 
-      {/* Formulário de cadastro */}
-      <form className="prof-form" onSubmit={handleSave}>
-        <div className="prof-form-inner">
-          <label className="prof-label">
-            Nome
-            <input
-              className="prof-input"
-              type="text"
-              placeholder="Nome do profissional..."
-              value={form.nome}
-              onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
-            />
-          </label>
-
-          <label className="prof-label">
-            Especialidade
-            <select
-              className="prof-select"
-              value={form.especialidade}
-              onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))}
-            >
-              {ESPECIALIDADES.map(e => <option key={e} value={e}>{e}</option>)}
-            </select>
-          </label>
-
-          <button type="submit" disabled={saving} className="prof-btn-add">
-            <FontAwesomeIcon icon="fa-solid fa-plus" style={{ marginRight: 7 }} />
-            {saving ? 'Salvando...' : 'Adicionar'}
-          </button>
-        </div>
-      </form>
-
-      {/* Lista */}
       {loading ? (
         <div className="prof-loading">Carregando...</div>
       ) : lista.length === 0 ? (
@@ -100,25 +126,130 @@ export default function Profissionais() {
       ) : (
         <div className="prof-lista">
           {lista.map(prof => {
-            const cor = COR[prof.especialidade] ?? COR['Fonoaudiologia']
+            const firstEsp = prof.especialidades[0] ?? 'Fonoaudiologia'
+            const cor      = COR[firstEsp] ?? COR['Fonoaudiologia']
             return (
-              <div key={prof.id} className="prof-card" style={{ borderLeft: `4px solid ${cor.border}` }}>
+              <div
+                key={prof.id}
+                className="prof-card"
+                style={{ borderLeft: `4px solid ${cor.border}` }}
+              >
                 <div className="prof-card-info">
                   <span className="prof-card-nome">{prof.nome}</span>
-                  <span className="prof-card-esp" style={{ color: cor.text, background: cor.bg }}>
-                    {prof.especialidade}
-                  </span>
+                  <div className="prof-card-esps">
+                    {prof.especialidades.map(esp => {
+                      const c = COR[esp] ?? COR['Fonoaudiologia']
+                      return (
+                        <span key={esp} className="prof-card-esp" style={{ color: c.text, background: c.bg }}>
+                          {esp}
+                        </span>
+                      )
+                    })}
+                  </div>
+                  {(prof.telefone || prof.email) && (
+                    <div className="prof-card-contato">
+                      {prof.telefone && <span>{prof.telefone}</span>}
+                      {prof.email    && <span>{prof.email}</span>}
+                    </div>
+                  )}
                 </div>
-                <button
-                  className="prof-card-del"
-                  onClick={() => handleDelete(prof.id)}
-                  title="Remover profissional"
-                >
-                  <FontAwesomeIcon icon="fa-solid fa-trash" />
-                </button>
+                <div className="prof-card-actions">
+                  <button
+                    className="prof-card-edit"
+                    onClick={() => abrirEdicao(prof)}
+                    title="Editar profissional"
+                  >
+                    <FontAwesomeIcon icon="fa-solid fa-pen-to-square" />
+                  </button>
+                  <button
+                    className="prof-card-del"
+                    onClick={() => handleDelete(prof.id)}
+                    title="Remover profissional"
+                  >
+                    <FontAwesomeIcon icon="fa-solid fa-trash" />
+                  </button>
+                </div>
               </div>
             )
           })}
+        </div>
+      )}
+
+      {showModal && (
+        <div className="agenda-modal-overlay" onClick={fecharModal}>
+          <div className="agenda-modal prof-modal" onClick={e => e.stopPropagation()}>
+            <div className="agenda-modal-header">
+              <h3>{editingProf ? 'Editar Profissional' : 'Novo Profissional'}</h3>
+              <button className="agenda-modal-close" onClick={fecharModal}>
+                <FontAwesomeIcon icon="fa-solid fa-xmark" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="agenda-modal-form">
+              <label className="agenda-label">
+                Nome *
+                <input
+                  className="agenda-input"
+                  type="text"
+                  placeholder="Nome do profissional..."
+                  value={form.nome}
+                  onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                  autoFocus
+                />
+              </label>
+
+              <label className="agenda-label">
+                Telefone
+                <input
+                  className="agenda-input"
+                  type="text"
+                  placeholder="(11) 91234-5678"
+                  value={form.telefone}
+                  onChange={e => setForm(f => ({ ...f, telefone: maskPhone(e.target.value) }))}
+                  maxLength={15}
+                />
+              </label>
+
+              <label className="agenda-label">
+                Email
+                <input
+                  className="agenda-input"
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                />
+              </label>
+
+              <div className="agenda-label">
+                Especialidades *
+                <div className="prof-esp-checks" style={{ marginTop: 6 }}>
+                  {ESPECIALIDADES.map(esp => (
+                    <label key={esp} className="prof-esp-check-label">
+                      <input
+                        type="checkbox"
+                        checked={form.especialidades.includes(esp)}
+                        onChange={e => setForm(f => ({
+                          ...f,
+                          especialidades: toggleEsp(f.especialidades, esp, e.target.checked),
+                        }))}
+                      />
+                      {esp}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="agenda-modal-actions">
+                <button type="button" className="agenda-btn-cancel" onClick={fecharModal}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saving}>
+                  {saving ? 'Salvando...' : editingProf ? 'Atualizar' : 'Cadastrar'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
